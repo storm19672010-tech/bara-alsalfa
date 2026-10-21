@@ -601,10 +601,13 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 
 function serveStatic(req, res, url) {
   if (url.pathname === '/healthz') { res.writeHead(200); return res.end('ok'); }
-  let rel = decodeURIComponent(url.pathname);
+  let rel;
+  try { rel = decodeURIComponent(url.pathname); } catch (e) { res.writeHead(400); return res.end(); }
   if (rel === '/' || rel === '') rel = '/index.html';
-  const file = path.normalize(path.join(PUBLIC_DIR, rel));
+  let file = path.normalize(path.join(PUBLIC_DIR, rel));
   if (!file.startsWith(PUBLIC_DIR)) { res.writeHead(403); return res.end(); }
+  // احتياط: إذا انرفع index.html برا مجلد public نقدّمه من المجلد الرئيسي
+  if (rel === '/index.html' && !fs.existsSync(file)) file = path.join(__dirname, 'index.html');
   fs.readFile(file, (e, data) => {
     if (e) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('404'); }
     res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
